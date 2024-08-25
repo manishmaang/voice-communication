@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <h1>Welcome to the Voice Application</h1>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.0/simplepeer.min.js"></script>
+    <button id="start-call">Start Call</button>
+    <script>
+        var socket = io();
+        socket.on('connect',function(){
+            console.log('Connected to the server');
+        })
+
+        var isInitiator = false;
+        socket.on('role',function(role){
+            if(role === 'initiator') isInitiator = true;
+        });
+
+        var callingBtn = document.getElementById('start-call');
+        callingBtn.addEventListener('click',async function(){
+            try{
+             var stream = await navigator.mediaDevices.getUserMedia({video : false, audio : true});
+             var peer = new SimplePeer({initiator : isInitiator, stream : stream});
+             
+             //user ne btn dabaya ye event chalega ki muje connection establish krna hai ye rha mera data jo server pr jayega and wha se broadcast hoga ye event apne aap triger hoga
+             peer.on('signal',function(data){
+                socket.emit('signal', data);
+             })
+
+            //broadcast hone ke baad dusra socket is ko listen karega or us data ko process karega using peer.signal and then apna signal banaega and then iske liye bhi peer.on event apne trigger hoga after it generates it's own data and then vo server wha se firse us data ko initiator pr bejega
+             socket.on('signal',function(data){
+                peer.signal(data);
+             })
+            //jb dono ka peer-2-peer setup ho jayega to ye event bhi apne aap trigger ho jayega to send the data streams
+             peer.on('stream', function(stream){
+                var audio = new Audio();
+                audio.srcObject = stream;
+                audio.play();
+             })
+            }
+            catch(err){
+                console.err('Something went wrong',err);
+            }  
+        })
+    </script>
+</body>
+</html>
